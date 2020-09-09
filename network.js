@@ -1,14 +1,17 @@
-function network({binId = "", bindName}, body, {...customConfig} = {}) {
-  const API_URL = "https://api.jsonbin.io/v3/b"; // todo: use API v2
+const localStorageKey = "API_KEY"
+function network({binId : endpoint = "", binName}, {body, ...customConfig} = {}) {
+  const API_KEY = localStorage.getItem(localStorageKey);
   const COLLECTION_ID = "5f1d6d37c58dc34bf5dafba4";
-  const API_KEY = localStorage.getItem("API_KEY");
+  const baseUrl = "https://api.jsonbin.io/v3/b";
 
   const headers = {
-    "Content-Type": "application/json; charset=utf-8",
+    "Content-Type": "application/json",
     "X-COLLECTION-ID": COLLECTION_ID,
     "X-Master-Key": API_KEY,
-    ...(bindName ? {"X-Bin-Name": binName} : {})
+    "X-Bin-Name": binName
   };
+
+  const url = `${baseUrl}/${endpoint}`;
 
   const config = {
     method: body ? "POST" : "GET",
@@ -17,26 +20,26 @@ function network({binId = "", bindName}, body, {...customConfig} = {}) {
       ...headers,
       ...customConfig.headers,
     },
+    ...(body ? { body: JSON.stringify(body) } : {}),
   };
 
-  if (body != null) {
-    config.body = JSON.stringify(body);
-  }
+  console.log(`Sending ${config.method} to ${url} with data:`, body);
 
-  return fetch(`${API_URL}/${binId}`, config)
-    .then(async (response) => {
-      if (response.status === 401) {
-        logout()
-        window.location.assign(window.location)
-        return
-      }
-      const data = await response.json();
-      if (response.ok) {
-        return data;
-      } else {
-        return Promise.reject(`${response.status} : '${data.message}'`);
-      }
-    });
+  return fetch(url, config).then(async (response) => {
+    if (response.status === 401) {
+      logout();
+      location.assign(location);
+      return;
+    }
+    const data = await response.json();
+    if (response.ok) {
+      console.log(`Got response ${response.status}`, data);
+      return data;
+    } else {
+      console.error(`${response.status} : '${data.message}'`);
+      return Promise.reject(`${response.status} : '${data.message}'`);
+    }
+  });
 }
 
 network.put = (id, options) => network(id, {method: "PUT", ...options});
@@ -45,5 +48,5 @@ network.get = (id, options) => network(id, {method: "GET", ...options});
 network.delete = (id, options) => network(id, {method: "DELETE", ...options});
 
 function logout() {
-  window.localStorage.removeItem("API_KEY");
+  localStorage.removeItem(localStorageKey);
 }
